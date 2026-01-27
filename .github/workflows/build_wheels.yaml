@@ -1,0 +1,45 @@
+name: Build Wheels
+
+on: [push, workflow_dispatch]
+
+jobs:
+  build_wheels:
+    name: Build wheels on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        # We only really care about Windows, but you can keep ubuntu-latest if you want linux wheels too
+        os: [windows-2019]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # 1. Turbodbc requires Boost. We install it via Chocolatey on the Windows runner.
+      # This saves us from having to compile Boost from scratch (which takes forever).
+      - name: Install Boost (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          choco install boost-msvc-14.2 --version=1.78.0 -y
+          echo "BOOST_ROOT=C:\local\boost_1_78_0" >> $env:GITHUB_ENV
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.16.5
+        env:
+          # 2. Configure Build Environment
+          # Turbodbc checks for numpy/pyarrow presence to decide if it should compile support for them.
+          # We force install them before the build step.
+          CIBW_BEFORE_BUILD: "pip install numpy pyarrow"
+          
+          # Tell the compiler where to find the Boost headers/libs we installed above
+          CIBW_ENVIRONMENT_WINDOWS: "INCLUDE='C:\\local\\boost_1_78_0;%INCLUDE%' LIB='C:\\local\\boost_1_78_0\\lib64-msvc-14.2;%LIB%' BOOST_ROOT='C:\\local\\boost_1_78_0'"
+          
+          # Skip 32-bit builds (optional, but saves time)
+          CIBW_ARCHS: "auto64"
+          
+          # Optional: Limit to specific python versions if you want to save time (e.g., cp310, cp311)
+          # CIBW_BUILD: "cp310-*"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: turbodbc-wheels
+          path: ./wheelhouse/*.whl
