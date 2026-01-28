@@ -24,7 +24,8 @@ jobs:
           
           # CHANGED: Update path to match 1_74_0
           echo "BOOST_ROOT=C:\local\boost_1_74_0" >> $env:GITHUB_ENV
-
+          choco install pkgconfiglite -y
+          
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.22.0
         env:
