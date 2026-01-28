@@ -13,7 +13,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
+        with:
+          submodules: true  # Ensure subprojects are downloaded
       # 1. Turbodbc requires Boost. We install it via Chocolatey on the Windows runner.
       # This saves us from having to compile Boost from scratch (which takes forever).
       - name: Install Boost (Windows)
