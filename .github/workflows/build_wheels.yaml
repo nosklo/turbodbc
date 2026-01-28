@@ -26,38 +26,29 @@ jobs:
           # CHANGED: Update path to match 1_74_0
           echo "BOOST_ROOT=C:\local\boost_1_74_0" >> $env:GITHUB_ENV
           choco install pkgconfiglite -y
-      - name: Provide simdutf via Meson Wrap
+      - name: Build and Install simdutf (CMake)
+        shell: cmd
         run: |
-          # 1. Create the subprojects directory if it doesn't exist
-          if (!(Test-Path -Path "subprojects")) { New-Item -ItemType Directory -Path "subprojects" }
+          git clone --depth 1 https://github.com/simdutf/simdutf.git
           
-          # 2. Create the wrap file manually
-          # This tells Meson where to fetch the source code
-          $content = @"
-          [wrap-git]
-          url = https://github.com/simdutf/simdutf.git
-          revision = v5.2.8
-          depth = 1
+          :: Configure (Disable tests to save time)
+          cmake -S simdutf -B build_simdutf -DCMAKE_INSTALL_PREFIX=C:\local\simdutf -DSIMDUTF_BENCHMARKS=OFF -DSIMDUTF_TESTS=OFF -DBUILD_SHARED_LIBS=OFF
           
-          [provide]
-          simdutf = simdutf_dep
-          "@
-          Set-Content -Path subprojects/simdutf.wrap -Value $content
-        shell: powershell          
+          :: Build and Install
+          cmake --build build_simdutf --target install --config Release
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.22.0
         env:
-          # 2. Configure Build Environment
-          # Turbodbc checks for numpy/pyarrow presence to decide if it should compile support for them.
-          # We force install them before the build step.
           CIBW_BEFORE_BUILD: "pip install numpy pyarrow"
           
-          # Tell the compiler where to find the Boost headers/libs we installed above
-          # CHANGED: Update all paths from 1_78_0 to 1_74_0
-          CIBW_ENVIRONMENT_WINDOWS: "INCLUDE='C:\\local\\boost_1_74_0;%INCLUDE%' LIB='C:\\local\\boost_1_74_0\\lib64-msvc-14.2;%LIB%' BOOST_ROOT='C:\\local\\boost_1_74_0'"
-          
-          # Skip 32-bit builds (optional, but saves time)
-          CIBW_ARCHS: "auto64"      
+          # NEW: Add C:\local\simdutf to the path so Meson/CMake can find it
+          CIBW_ENVIRONMENT_WINDOWS: >
+            CMAKE_PREFIX_PATH='C:\local\simdutf;%CMAKE_PREFIX_PATH%'
+            INCLUDE='C:\local\boost_1_74_0;%INCLUDE%'
+            LIB='C:\local\boost_1_74_0\lib64-msvc-14.2;%LIB%'
+            BOOST_ROOT='C:\local\boost_1_74_0'
+            
+          CIBW_ARCHS: "auto64"
          
           # Optional: Limit to specific python versions if you want to save time (e.g., cp310, cp311)
           CIBW_BUILD: "cp313-*"
