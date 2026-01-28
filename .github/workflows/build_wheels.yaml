@@ -26,7 +26,24 @@ jobs:
           # CHANGED: Update path to match 1_74_0
           echo "BOOST_ROOT=C:\local\boost_1_74_0" >> $env:GITHUB_ENV
           choco install pkgconfiglite -y
+      - name: Provide simdutf via Meson Wrap
+        run: |
+          # 1. Create the subprojects directory if it doesn't exist
+          if (!(Test-Path -Path "subprojects")) { New-Item -ItemType Directory -Path "subprojects" }
           
+          # 2. Create the wrap file manually
+          # This tells Meson where to fetch the source code
+          $content = @"
+          [wrap-git]
+          url = https://github.com/simdutf/simdutf.git
+          revision = v5.2.8
+          depth = 1
+          
+          [provide]
+          simdutf = simdutf_dep
+          "@
+          Set-Content -Path subprojects/simdutf.wrap -Value $content
+        shell: powershell          
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.22.0
         env:
