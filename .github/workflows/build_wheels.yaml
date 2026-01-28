@@ -36,13 +36,46 @@ jobs:
           
           :: Build and Install
           cmake --build build_simdutf --target install --config Release
+      - name: Create Arrow Config Script
+        shell: python
+        run: |
+          code = r"""
+          import pyarrow, os, sys
+          # Output to a standard temp location
+          pc_dir = r"C:\local\pkgconfig"
+          os.makedirs(pc_dir, exist_ok=True)
+          
+          lib_dir = pyarrow.get_library_dirs()[0].replace("\\", "/")
+          include_dir = pyarrow.get_include().replace("\\", "/")
+          version = pyarrow.__version__
+          
+          content = f'''
+          prefix={lib_dir}
+          includedir={include_dir}
+          libdir={lib_dir}
+          Name: arrow
+          Description: Apache Arrow
+          Version: {version}
+          Libs: -L${{libdir}} -larrow -larrow_python
+          Cflags: -I${{includedir}}
+          '''
+          
+          with open(os.path.join(pc_dir, "arrow.pc"), "w") as f:
+              f.write(content)
+          """
+          with open("setup_arrow_env.py", "w") as f:
+              f.write(code)
+
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.22.0
         env:
-          CIBW_BEFORE_BUILD: "pip install numpy pyarrow"
+          # This command runs inside EACH python build environment.
+          # It installs the CORRECT pyarrow for that version, then generates the matching .pc file.
+          CIBW_BEFORE_BUILD: "pip install numpy pyarrow && python setup_arrow_env.py"
           
-          # NEW: Add C:\local\simdutf to the path so Meson/CMake can find it
+          # We just point to the folder where the script writes the .pc file
           CIBW_ENVIRONMENT_WINDOWS: >
+            PKG_CONFIG_PATH='C:\local\pkgconfig;%PKG_CONFIG_PATH%'
             CMAKE_PREFIX_PATH='C:\local\simdutf;%CMAKE_PREFIX_PATH%'
             INCLUDE='C:\local\boost_1_74_0;%INCLUDE%'
             LIB='C:\local\boost_1_74_0\lib64-msvc-14.2;%LIB%'
