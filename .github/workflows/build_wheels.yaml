@@ -19,8 +19,11 @@ jobs:
       - name: Install Boost (Windows)
         if: runner.os == 'Windows'
         run: |
-          choco install boost-msvc-14.2 --version=1.78.0 -y
-          echo "BOOST_ROOT=C:\local\boost_1_78_0" >> $env:GITHUB_ENV
+          # CHANGED: 1.78.0 -> 1.74.0
+          choco install boost-msvc-14.2 --version=1.74.0 -y --allow-empty-checksums
+          
+          # CHANGED: Update path to match 1_74_0
+          echo "BOOST_ROOT=C:\local\boost_1_74_0" >> $env:GITHUB_ENV
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.16.5
@@ -31,13 +34,14 @@ jobs:
           CIBW_BEFORE_BUILD: "pip install numpy pyarrow"
           
           # Tell the compiler where to find the Boost headers/libs we installed above
-          CIBW_ENVIRONMENT_WINDOWS: "INCLUDE='C:\\local\\boost_1_78_0;%INCLUDE%' LIB='C:\\local\\boost_1_78_0\\lib64-msvc-14.2;%LIB%' BOOST_ROOT='C:\\local\\boost_1_78_0'"
+          # CHANGED: Update all paths from 1_78_0 to 1_74_0
+          CIBW_ENVIRONMENT_WINDOWS: "INCLUDE='C:\\local\\boost_1_74_0;%INCLUDE%' LIB='C:\\local\\boost_1_74_0\\lib64-msvc-14.2;%LIB%' BOOST_ROOT='C:\\local\\boost_1_74_0'"
           
           # Skip 32-bit builds (optional, but saves time)
-          CIBW_ARCHS: "auto64"
-          
+          CIBW_ARCHS: "auto64"      
+         
           # Optional: Limit to specific python versions if you want to save time (e.g., cp310, cp311)
-          # CIBW_BUILD: "cp310-*"
+          CIBW_BUILD: "cp313-*"
 
       - uses: actions/upload-artifact@v4
         with:
